@@ -1,0 +1,49 @@
+services:
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - backend
+    networks:
+      - frontend
+
+  backend:
+    build: ./backend
+    environment:
+      DB_HOST: db
+      DB_NAME: assessment
+      DB_USER: assessment_app
+      DB_PASSWORD: ${DB_PASSWORD:?Set DB_PASSWORD in .env}
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - frontend
+      - database
+
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: assessment
+      POSTGRES_USER: assessment_app
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?Set DB_PASSWORD in .env}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U assessment_app -d assessment"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - database
+
+networks:
+  frontend:
+  database:
+    internal: true
+
+volumes:
+  postgres_data:
